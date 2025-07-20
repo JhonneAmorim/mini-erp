@@ -15,6 +15,8 @@ spl_autoload_register(function ($className) {
 
 $router = new Router();
 
+$router->add('GET', '', 'ProdutoController@index');
+
 // Rotas de produtos
 $router->add('GET', 'produtos', 'ProdutoController@index');
 $router->add('GET', 'produtos/editar', 'ProdutoController@editar');
