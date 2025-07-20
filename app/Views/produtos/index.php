@@ -20,19 +20,11 @@ require_once '../app/Views/layouts/header.php';
         </div>
         <h4 class="mt-4">Variações e Estoque</h4>
         <div id="variacoesContainer">
-            <div class="row mb-2">
-                <div class="col-md-5">
-                    <input type="text" class="form-control" name="variacoes[0][nome]"
-                        placeholder="Ex: Cor Azul, Tamanho P">
-                </div>
-                <div class="col-md-3">
-                    <input type="number" class="form-control" name="variacoes[0][estoque]" placeholder="Quantidade"
-                        required>
-                </div>
-            </div>
         </div>
         <button type="button" class="btn btn-secondary btn-sm" id="addVariacao">+ Adicionar Variação</button>
         <button type="submit" class="btn btn-primary mt-3">Salvar Produto</button>
+        <button type="button" class="btn btn-light mt-3" id="cancelarEdicao" style="display: none;">Cancelar
+            Edição</button>
     </form>
 
     <h3>Produtos Cadastrados</h3>
@@ -47,14 +39,27 @@ require_once '../app/Views/layouts/header.php';
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($produtos as $produto): ?>
+            <?php
+            $produtosAgrupados = [];
+            foreach ($produtos as $p) {
+                $produtosAgrupados[$p['id']]['dados'] = $p;
+                $produtosAgrupados[$p['id']]['variacoes'][] = [
+                    'variacao' => $p['variacao'],
+                    'quantidade' => $p['quantidade']
+                ];
+            }
+
+            foreach ($produtosAgrupados as $id => $produto): ?>
                 <tr>
-                    <td><?php echo htmlspecialchars($produto['nome']); ?></td>
-                    <td>R$ <?php echo number_format($produto['preco'], 2, ',', '.'); ?></td>
-                    <td><?php echo htmlspecialchars($produto['variacao']); ?></td>
-                    <td><?php echo $produto['quantidade']; ?></td>
+                    <td><?php echo htmlspecialchars($produto['dados']['nome']); ?></td>
+                    <td>R$ <?php echo number_format($produto['dados']['preco'], 2, ',', '.'); ?></td>
+                    <td colspan="2">
+                        <?php foreach ($produto['variacoes'] as $v): ?>
+                            <?php echo htmlspecialchars($v['variacao']); ?>: <?php echo $v['quantidade']; ?> unid.<br>
+                        <?php endforeach; ?>
+                    </td>
                     <td>
-                        <button class="btn btn-info btn-sm">Editar</button>
+                        <button class="btn btn-info btn-sm" onclick="editarProduto(<?php echo $id; ?>)">Editar</button>
                         <button class="btn btn-success btn-sm">Comprar</button>
                     </td>
                 </tr>
@@ -66,22 +71,63 @@ require_once '../app/Views/layouts/header.php';
 <?php require_once '../app/Views/layouts/footer.php'; ?>
 
 <script>
-    document.getElementById('addVariacao').addEventListener('click', () => {
-        const container = document.getElementById('variacoesContainer');
-        const index = container.querySelectorAll('.row').length;
+    const variacoesContainer = document.getElementById('variacoesContainer');
+    const addVariacaoBtn = document.getElementById('addVariacao');
 
+    const addVariacaoField = (variacao = {
+        nome: '',
+        estoque: ''
+    }) => {
+        const index = variacoesContainer.querySelectorAll('.row').length;
         const novaRow = document.createElement('div');
         novaRow.classList.add('row', 'mb-2');
         novaRow.innerHTML = `
-        <div class="col-md-5">
-            <input type="text" class="form-control" name="variacoes[${index}][nome]"
-                placeholder="Ex: Cor Vermelha, Tamanho G">
-        </div>
-        <div class="col-md-3">
-            <input type="number" class="form-control" name="variacoes[${index}][estoque]"
-                placeholder="Quantidade" required>
-        </div>
-    `;
-        container.appendChild(novaRow);
+            <div class="col-md-5">
+                <input type="text" class="form-control" name="variacoes[${index}][nome]"
+                    placeholder="Ex: Cor Azul, Tamanho P" value="${variacao.nome}">
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control" name="variacoes[${index}][estoque]" placeholder="Quantidade"
+                    required value="${variacao.estoque}">
+            </div>
+        `;
+        variacoesContainer.appendChild(novaRow);
+    };
+
+    addVariacaoBtn.addEventListener('click', () => addVariacaoField());
+
+    addVariacaoField();
+
+    function editarProduto(id) {
+        fetch(`/produtos/editar?id=${id}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('produtoId').value = data.id;
+                document.getElementById('nome').value = data.nome;
+                document.getElementById('preco').value = data.preco;
+
+                variacoesContainer.innerHTML = '';
+                if (data.variacoes && data.variacoes.length > 0) {
+                    data.variacoes.forEach(v => {
+                        addVariacaoField({
+                            nome: v.variacao,
+                            estoque: v.quantidade
+                        });
+                    });
+                } else {
+                    addVariacaoField();
+                }
+
+                document.getElementById('cancelarEdicao').style.display = 'inline-block';
+                window.scrollTo(0, 0);
+            });
+    }
+
+    document.getElementById('cancelarEdicao').addEventListener('click', () => {
+        document.querySelector('form').reset();
+        document.getElementById('produtoId').value = '';
+        variacoesContainer.innerHTML = '';
+        addVariacaoField();
+        document.getElementById('cancelarEdicao').style.display = 'none';
     });
 </script>
