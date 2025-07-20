@@ -11,9 +11,9 @@ class Produto
 
     public function getAll()
     {
-        $sql = "SELECT p.*, e.variacao, e.quantidade FROM produtos p
-                LEFT JOIN estoque e ON p.id = e.produto_id
-                ORDER BY p.nome";
+        $sql = "SELECT p.*, e.variacao, e.quantidade, e.id as estoque_id FROM produtos p
+            LEFT JOIN estoque e ON p.id = e.produto_id
+            ORDER BY p.id, p.nome";
 
         $result = $this->db->query($sql);
         return $result->fetch_all(MYSQLI_ASSOC);
@@ -98,5 +98,17 @@ class Produto
         }
 
         return false;
+    }
+
+    public function findVariation($estoqueId)
+    {
+        $estoqueId = (int)$estoqueId;
+        $sql = "SELECT p.id as produto_id, p.nome, p.preco, e.id as estoque_id, e.variacao, e.quantidade
+                FROM estoque e
+                JOIN produtos p ON e.produto_id = p.id
+                WHERE e.id = $estoqueId";
+
+        $result = $this->db->query($sql);
+        return $result->fetch_assoc();
     }
 }

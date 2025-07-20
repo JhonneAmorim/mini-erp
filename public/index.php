@@ -20,6 +20,15 @@ $router->add('GET', 'produtos', 'ProdutoController@index');
 $router->add('GET', 'produtos/editar', 'ProdutoController@editar');
 $router->add('POST', 'produtos/salvar', 'ProdutoController@salvar');
 
+// Rota para carrinho
+$router->add('POST', 'carrinho/adicionar', 'PedidoController@adicionarAoCarrinho');
+$router->add('GET', 'carrinho', 'PedidoController@carrinho');
+$router->add('POST', 'finalizar-pedido', 'PedidoController@finalizar');
+
+// Rota para Pedidos
+$router->add('GET', 'pedidos', 'PedidoController@index');
+
+
 $url = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
 
 $router->dispatch($url);

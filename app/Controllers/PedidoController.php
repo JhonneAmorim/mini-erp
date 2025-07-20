@@ -2,19 +2,76 @@
 
 class PedidoController
 {
+
+    public function index()
+    {
+        $pedidoModel = new Pedido();
+        $pedidos = $pedidoModel->getAll();
+        require_once '../app/Views/pedidos/index.php';
+    }
+
+    public function carrinho()
+    {
+        $carrinho = $_SESSION['carrinho'] ?? [];
+        $totais = $_SESSION['carrinho_totais'] ?? ['subtotal' => 0, 'frete' => 0, 'total' => 0];
+
+        require_once '../app/Views/carrinho/index.php';
+    }
+
+    public function finalizar()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: /carrinho');
+            exit;
+        }
+
+        $pedidoData = [
+            'cliente_nome' => $_POST['nome'],
+            'cliente_email' => $_POST['email'],
+            'cep' => $_POST['cep'],
+            'endereco' => $_POST['endereco'],
+            'subtotal' => $_SESSION['carrinho_totais']['subtotal'],
+            'frete' => $_SESSION['carrinho_totais']['frete'],
+            'total' => $_SESSION['carrinho_totais']['total'],
+        ];
+
+        $itensCarrinho = $_SESSION['carrinho'];
+
+        $pedidoModel = new Pedido();
+        if ($pedidoModel->create($pedidoData, $itensCarrinho)) {
+            unset($_SESSION['carrinho']);
+            unset($_SESSION['carrinho_totais']);
+
+            header('Location: /pedidos');
+            exit;
+        } else {
+            header('Location: /carrinho?erro=1');
+            exit;
+        }
+    }
+
     public function adicionarAoCarrinho()
     {
-        $produtoId = $_POST['produto_id'] ?? null;
+        header('Content-Type: application/json');
+
+        $estoqueId = $_POST['estoque_id'] ?? null;
         $quantidade = $_POST['quantidade'] ?? 1;
 
-        $produtoModel = new Produto();
-        $produto = $produtoModel->find($produtoId);
-        if (!$produto) {
-            echo "Produto não encontrado.";
+        if (!$estoqueId || $quantidade <= 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Dados inválidos.']);
             return;
         }
-        if ($produto['quantidade'] < $quantidade) {
-            echo "Quantidade solicitada não disponível em estoque.";
+
+        $produtoModel = new Produto();
+        $variacao = $produtoModel->findVariation($estoqueId);
+
+        if (!$variacao) {
+            echo json_encode(['status' => 'error', 'message' => 'Produto ou variação não encontrada.']);
+            return;
+        }
+
+        if ($variacao['quantidade'] < $quantidade) {
+            echo json_encode(['status' => 'error', 'message' => 'Quantidade solicitada não disponível em estoque.']);
             return;
         }
 
@@ -22,15 +79,19 @@ class PedidoController
             $_SESSION['carrinho'] = [];
         }
 
-        if (isset($_SESSION['carrinho'][$produtoId])) {
-            $_SESSION['carrinho'][$produtoId]['quantidade'] += $quantidade;
+        if (isset($_SESSION['carrinho'][$estoqueId])) {
+            if ($variacao['quantidade'] < ($_SESSION['carrinho'][$estoqueId]['quantidade'] + $quantidade)) {
+                echo json_encode(['status' => 'error', 'message' => 'Não é possível adicionar mais unidades deste item. Estoque insuficiente.']);
+                return;
+            }
+            $_SESSION['carrinho'][$estoqueId]['quantidade'] += $quantidade;
         } else {
-            $produtoModel = new Produto();
-            $produto = $produtoModel->find($produtoId);
-            $_SESSION['carrinho'][$produtoId] = [
-                'id' => $produto['id'],
-                'nome' => $produto['nome'],
-                'preco' => $produto['preco'],
+            $_SESSION['carrinho'][$estoqueId] = [
+                'produto_id' => $variacao['produto_id'],
+                'estoque_id' => $variacao['estoque_id'],
+                'nome' => $variacao['nome'],
+                'variacao' => $variacao['variacao'],
+                'preco' => $variacao['preco'],
                 'quantidade' => $quantidade,
             ];
         }
@@ -39,7 +100,8 @@ class PedidoController
 
         echo json_encode([
             'status' => 'success',
-            'carrinho' => $_SESSION['carrinho']
+            'message' => 'Produto adicionado ao carrinho!',
+            'total_itens' => count($_SESSION['carrinho'])
         ]);
     }
 
