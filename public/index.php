@@ -33,6 +33,9 @@ $router->add('GET', 'pedidos', 'PedidoController@index');
 $router->add('GET', 'cupons', 'CupomController@index');
 $router->add('POST', 'cupons/salvar', 'CupomController@salvar');
 
+// Rota para o Webhook
+$router->add('POST', 'webhook/pedidos', 'WebhookController@handle');
+
 
 $url = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
 

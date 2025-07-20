@@ -109,4 +109,43 @@ class Pedido
         $result = $this->db->query($sql);
         return $result->fetch_assoc();
     }
+
+    public function cancelOrderAndRestock($pedidoId)
+    {
+        $pedidoId = (int)$pedidoId;
+
+        $this->db->begin_transaction();
+
+        try {
+            $sqlItens = "SELECT produto_id, variacao, quantidade FROM pedido_itens WHERE pedido_id = ?";
+            $stmtItens = $this->db->prepare($sqlItens);
+            $stmtItens->bind_param("i", $pedidoId);
+            $stmtItens->execute();
+            $itensResult = $stmtItens->get_result();
+            $itens = $itensResult->fetch_all(MYSQLI_ASSOC);
+            $stmtItens->close();
+
+            if (!empty($itens)) {
+                $stmtEstoque = $this->db->prepare("UPDATE estoque SET quantidade = quantidade + ? WHERE produto_id = ? AND variacao <=> ?");
+
+                foreach ($itens as $item) {
+                    $stmtEstoque->bind_param("iis", $item['quantidade'], $item['produto_id'], $item['variacao']);
+                    $stmtEstoque->execute();
+                }
+                $stmtEstoque->close();
+            }
+
+            $stmtDelete = $this->db->prepare("DELETE FROM pedidos WHERE id = ?");
+            $stmtDelete->bind_param("i", $pedidoId);
+            $stmtDelete->execute();
+            $stmtDelete->close();
+
+            $this->db->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->rollback();
+            error_log("Erro ao cancelar pedido: " . $e->getMessage());
+            return false;
+        }
+    }
 }
