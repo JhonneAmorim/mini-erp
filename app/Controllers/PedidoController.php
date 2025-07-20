@@ -1,5 +1,7 @@
 <?php
 
+require_once '../app/Services/EmailService.php';
+
 class PedidoController
 {
 
@@ -77,12 +79,18 @@ class PedidoController
         $itensCarrinho = $_SESSION['carrinho'];
 
         $pedidoModel = new Pedido();
-        if ($pedidoModel->create($pedidoData, $itensCarrinho)) {
+        $pedidoCriado = $pedidoModel->create($pedidoData, $itensCarrinho);
+        if ($pedidoCriado) {
+            $pedidoData['pedido_id'] = $pedidoCriado;
+
+            $emailService = new EmailService();
+            $emailService->sendOrderConfirmation($pedidoData, $itensCarrinho);
+
             unset($_SESSION['carrinho']);
             unset($_SESSION['carrinho_totais']);
             unset($_SESSION['cupom_aplicado']);
 
-            header('Location: /pedidos');
+            header('Location: /pedidos?sucesso=1');
             exit;
         } else {
             header('Location: /carrinho?erro=1');

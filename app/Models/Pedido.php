@@ -64,7 +64,7 @@ class Pedido
             $stmtEstoque->close();
 
             $this->db->commit();
-            return true;
+            return $pedido_id;
         } catch (Exception $e) {
             $this->db->rollback();
             return false;
