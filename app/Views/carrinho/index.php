@@ -36,11 +36,31 @@ require_once '../app/Views/layouts/header.php';
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                <hr>
+                <div class="card bg-light p-3 mb-4">
+                    <form id="formAplicarCupom">
+                        <label for="codigo_cupom" class="form-label"><strong>Tem um cupom de desconto?</strong></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="codigo_cupom" name="codigo_cupom"
+                                placeholder="Digite o código aqui">
+                            <button class="btn btn-secondary" type="submit">Aplicar</button>
+                        </div>
+                    </form>
+                    <div id="cupomMessage" class="mt-2"></div>
+                </div>
+
                 <div class="text-end">
-                    <p>Subtotal: <strong>R$ <?php echo number_format($totais['subtotal'], 2, ',', '.'); ?></strong></p>
-                    <p>Frete: <strong>R$ <?php echo number_format($totais['frete'], 2, ',', '.'); ?></strong></p>
-                    <h4>Total: <strong>R$ <?php echo number_format($totais['total'], 2, ',', '.'); ?></strong></h4>
+                    <p>Subtotal: <strong id="subtotalValor">R$
+                            <?php echo number_format($totais['subtotal'], 2, ',', '.'); ?></strong></p>
+                    <p id="descontoLinha"
+                        style="display: <?php echo ($totais['desconto'] ?? 0) > 0 ? 'block' : 'none'; ?>;">
+                        Desconto: <strong id="descontoValor" class="text-success">- R$
+                            <?php echo number_format($totais['desconto'] ?? 0, 2, ',', '.'); ?></strong>
+                    </p>
+                    <p>Frete: <strong id="freteValor">R$
+                            <?php echo number_format($totais['frete'], 2, ',', '.'); ?></strong></p>
+                    <hr>
+                    <h4>Total: <strong id="totalValor">R$
+                            <?php echo number_format($totais['total'], 2, ',', '.'); ?></strong></h4>
                 </div>
             </div>
 
@@ -91,4 +111,44 @@ require_once '../app/Views/layouts/header.php';
                 .catch(error => console.error('Erro ao buscar CEP:', error));
         }
     });
+
+    document.getElementById('formAplicarCupom').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const cupomMessage = document.getElementById('cupomMessage');
+        const formData = new FormData(this);
+
+        fetch('/carrinho/aplicar-cupom', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    cupomMessage.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                    // Atualiza os totais na tela
+                    atualizarTotais(data.totais);
+                } else {
+                    cupomMessage.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                cupomMessage.innerHTML = `<div class="alert alert-danger">Ocorreu um erro.</div>`;
+            });
+    });
+
+    function atualizarTotais(totais) {
+        const descontoLinha = document.getElementById('descontoLinha');
+
+        document.getElementById('subtotalValor').textContent = 'R$ ' + totais.subtotal.toFixed(2).replace('.', ',');
+        document.getElementById('freteValor').textContent = 'R$ ' + totais.frete.toFixed(2).replace('.', ',');
+        document.getElementById('totalValor').textContent = 'R$ ' + totais.total.toFixed(2).replace('.', ',');
+
+        if (totais.desconto > 0) {
+            document.getElementById('descontoValor').textContent = '- R$ ' + totais.desconto.toFixed(2).replace('.', ',');
+            descontoLinha.style.display = 'block';
+        } else {
+            descontoLinha.style.display = 'none';
+        }
+    }
 </script>

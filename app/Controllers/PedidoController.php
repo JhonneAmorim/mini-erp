@@ -18,12 +18,49 @@ class PedidoController
         require_once '../app/Views/carrinho/index.php';
     }
 
+    public function aplicarCupom()
+    {
+        header('Content-Type: application/json');
+        $codigoCupom = $_POST['codigo_cupom'] ?? '';
+
+        if (empty($codigoCupom)) {
+            echo json_encode(['status' => 'error', 'message' => 'Por favor, insira um código de cupom.']);
+            return;
+        }
+
+        $cupomModel = new Cupom();
+        $cupom = $cupomModel->findByCode($codigoCupom);
+
+        if (!$cupom) {
+            echo json_encode(['status' => 'error', 'message' => 'Cupom inválido ou expirado.']);
+            return;
+        }
+
+        $subtotal = $_SESSION['carrinho_totais']['subtotal'] ?? 0;
+        if ($subtotal < $cupom['valor_minimo_pedido']) {
+            echo json_encode(['status' => 'error', 'message' => 'O valor do pedido não atinge o mínimo necessário para este cupom.']);
+            return;
+        }
+
+        $_SESSION['cupom_aplicado'] = $cupom;
+
+        $this->recalcularCarrinho();
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Cupom aplicado com sucesso!',
+            'totais' => $_SESSION['carrinho_totais']
+        ]);
+    }
+
     public function finalizar()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             header('Location: /carrinho');
             exit;
         }
+
+        $this->recalcularCarrinho();
 
         $pedidoData = [
             'cliente_nome' => $_POST['nome'],
@@ -32,7 +69,9 @@ class PedidoController
             'endereco' => $_POST['endereco'],
             'subtotal' => $_SESSION['carrinho_totais']['subtotal'],
             'frete' => $_SESSION['carrinho_totais']['frete'],
+            'desconto' => $_SESSION['carrinho_totais']['desconto'],
             'total' => $_SESSION['carrinho_totais']['total'],
+            'cupom_id' => $_SESSION['cupom_aplicado']['id'] ?? null,
         ];
 
         $itensCarrinho = $_SESSION['carrinho'];
@@ -41,6 +80,7 @@ class PedidoController
         if ($pedidoModel->create($pedidoData, $itensCarrinho)) {
             unset($_SESSION['carrinho']);
             unset($_SESSION['carrinho_totais']);
+            unset($_SESSION['cupom_aplicado']);
 
             header('Location: /pedidos');
             exit;
@@ -108,24 +148,40 @@ class PedidoController
     private function recalcularCarrinho()
     {
         $subtotal = 0;
-        if (isset($_SESSION['carrinho'])) {
+        if (isset($_SESSION['carrinho']) && !empty($_SESSION['carrinho'])) {
             foreach ($_SESSION['carrinho'] as $item) {
                 $subtotal += $item['preco'] * $item['quantidade'];
+            }
+        } else {
+            unset($_SESSION['cupom_aplicado']);
+        }
+
+        $desconto = 0;
+        if (isset($_SESSION['cupom_aplicado'])) {
+            $cupom = $_SESSION['cupom_aplicado'];
+
+            if ($cupom['tipo_desconto'] == 'percentual') {
+                $desconto = ($subtotal * $cupom['valor']) / 100;
+            } else {
+                $desconto = $cupom['valor'];
+            }
+            if ($desconto > $subtotal) {
+                $desconto = $subtotal;
             }
         }
 
         $frete = 20.00;
-
-        if ($subtotal > 200.00) {
+        if (($subtotal - $desconto) > 200.00) {
             $frete = 0.00;
-        } else if ($subtotal >= 52.00 && $subtotal <= 166.59) {
+        } else if (($subtotal - $desconto) >= 52.00 && ($subtotal - $desconto) <= 166.59) {
             $frete = 15.00;
         }
 
         $_SESSION['carrinho_totais'] = [
             'subtotal' => $subtotal,
+            'desconto' => $desconto,
             'frete' => $frete,
-            'total' => $subtotal + $frete
+            'total' => ($subtotal - $desconto) + $frete
         ];
     }
 }

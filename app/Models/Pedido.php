@@ -15,17 +15,19 @@ class Pedido
 
         try {
             $stmt = $this->db->prepare(
-                "INSERT INTO pedidos (cliente_nome, cliente_email, cep, endereco, subtotal, valor_frete, valor_total, status) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendente')"
+                "INSERT INTO pedidos (cliente_nome, cliente_email, cep, endereco, subtotal, valor_frete, cupom_id, valor_desconto, valor_total, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pendente')"
             );
             $stmt->bind_param(
-                "ssssddd",
+                "ssssddids",
                 $pedidoData['cliente_nome'],
                 $pedidoData['cliente_email'],
                 $pedidoData['cep'],
                 $pedidoData['endereco'],
                 $pedidoData['subtotal'],
                 $pedidoData['frete'],
+                $pedidoData['cupom_id'],
+                $pedidoData['desconto'],
                 $pedidoData['total']
             );
             $stmt->execute();

@@ -24,9 +24,14 @@ $router->add('POST', 'produtos/salvar', 'ProdutoController@salvar');
 $router->add('POST', 'carrinho/adicionar', 'PedidoController@adicionarAoCarrinho');
 $router->add('GET', 'carrinho', 'PedidoController@carrinho');
 $router->add('POST', 'finalizar-pedido', 'PedidoController@finalizar');
+$router->add('POST', 'carrinho/aplicar-cupom', 'PedidoController@aplicarCupom');
 
 // Rota para Pedidos
 $router->add('GET', 'pedidos', 'PedidoController@index');
+
+// Rotas para Cupons
+$router->add('GET', 'cupons', 'CupomController@index');
+$router->add('POST', 'cupons/salvar', 'CupomController@salvar');
 
 
 $url = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
